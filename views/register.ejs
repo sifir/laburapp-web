@@ -1,0 +1,43 @@
+<!-- Default home page -->
+<div class="section no-pad-bot">
+    <div class="container">
+        <h3>User</h3>
+        <form method="POST" action="/users">
+            <label for="firtName">Nombre:</label>
+            <input name="firstName" type="text"/>
+            <label for="lastName">Apellido:</label>
+            <input name="lastName" type="text"/>
+            <label for="email">Email:</label>
+            <input name="email" type="email"/>
+            <label for="password">Contraseña:</label>
+            <input name="password" type="password"/>
+            <button type="submit">Crear cuenta</button>
+        </form>
+        <h3>Nodes</h3>
+        <form method="POST" action="/nodes">
+            <label for="name">Nombre:</label>
+            <input name="name" type="text"/>
+            <label for="tag">TAG:</label>
+            <input name="tag" type="text"/>
+            <label for="geolocation">GEO:</label>
+            <input name="geolocation" type="text"/>
+            <label for="schedule">Horarios:</label>
+            <input name="schedule" type="text"/>
+            <label for="manager">Administrador:</label>
+            <input name="administrator" type="number"/>
+            <button type="submit">Crear nodo</button>
+        </form>
+        <h3>Stamps</h3>
+        <form method="POST" action="/stamps">
+            <label for="type">Tipo</label>
+            <input name="type" type="text"/>
+            <label for="date">Fecha:</label>
+            <input name="date" type="datetime-local"/>
+            <label for="node">Nodo:</label>
+            <input name="node" type="number"/>
+            <label for="user">User:</label>
+            <input name="user" type="number"/>
+            <button type="submit">Crear stamp</button>
+        </form>
+    </div>
+</div>
