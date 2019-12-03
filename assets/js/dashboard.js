@@ -1,3 +1,39 @@
+Vue.component('month-select', {
+    props: ['value'],
+    data: function () {
+        return {
+            selected: this.value,
+            options: [
+                { month: 0, label: 'Enero' },
+                { month: 1, label: 'Febrero' },
+                { month: 2, label: 'Marzo' },
+                { month: 3, label: 'Abril' },
+                { month: 4, label: 'Mayo' },
+                { month: 5, label: 'Junio' },
+                { month: 6, label: 'Julio' },
+                { month: 7, label: 'Agosto' },
+                { month: 8, label: 'Septiembre' },
+                { month: 9, label: 'Octubre' },
+                { month: 10, label: 'Noviembre' },
+                { month: 11, label: 'Diciembre' }
+            ]
+        };
+    },
+    template: `
+    <div>
+        <label>Mes</label>
+        <select @change="change" v-model="selected" class="browser-default">
+            <option value="" disabled selected>Elegir mes</option>
+            <option v-for="option in options" :value="option.month">{{option.label}}</option>
+        </select>
+    </div>`,
+    methods: {
+        change: function () {
+            this.$emit('input', this.selected);
+        }
+    }
+});
+
 Vue.component('node-select', {
     data: function () {
         return {
@@ -72,6 +108,9 @@ Vue.component('assistance-chart', {
     </div>`,
     watch: {
         node: function () {
+            this.searchShifts(this.search.dateFrom, this.search.dateTo);
+        },
+        search: function () {
             this.searchShifts(this.search.dateFrom, this.search.dateTo);
         }
     },
@@ -253,6 +292,9 @@ Vue.component('user-assistance-chart', {
         },
         user: function () {
             this.searchShifts(this.search.dateFrom, this.search.dateTo);
+        },
+        search: function () {
+            this.searchShifts(this.search.dateFrom, this.search.dateTo);
         }
     },
     mounted: function () {
@@ -317,8 +359,7 @@ Vue.component('user-assistance-chart', {
         },
         shiftsToSeries: function (shifts, options) {
             const empty = this.initialEmptyRange(options.year, options.month);
-            console.log('empty', empty);
-            return [
+            return shifts.length ? [
                 {
                     data: Object.values(Object.assign(empty,
                         shifts.reduce((acc, each) => {
@@ -336,7 +377,7 @@ Vue.component('user-assistance-chart', {
                     ),
                     name: shifts[0].user.firstName + ' ' + shifts[0].user.lastName
                 }
-            ];
+            ] : [];
         },
 
         initialEmptyRange: function (year, month) {
@@ -383,10 +424,18 @@ const app = new Vue({
             user: null,
             searchOptions: {
                 year: y,
-                month: m,
-                dateFrom: new Date(y, m, 1),
-                dateTo: new Date(y, m + 1, 0)
+                month: m
             }
         };
+    },
+    computed: {
+        search: function () {
+            return {
+                year: this.searchOptions.year,
+                month: this.searchOptions.month,
+                dateFrom: new Date(this.searchOptions.year, this.searchOptions.month, 1),
+                dateTo: new Date(this.searchOptions.year, this.searchOptions.month + 1, 0)
+            };
+        }
     }
 });
