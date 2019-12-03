@@ -1,3 +1,21 @@
+/**
+ * Suma 24 horas laborales si trabajo hasta el dia siguiente
+ */
+function withExtraDay(shift, workedHours, increment) {
+    let s = new Date(shift.started).getDate(),
+        e = new Date(shift.ended).getDate();
+    return e > s ? workedHours + increment : workedHours;
+}
+
+/**
+ * Devuelve array con dias del mes:
+ * ej.
+ * [1,2,3,4,5,6,7...]
+ */
+function daysInMonth(month, year) {
+    return [...new Array(new Date(year, month, 0).getDate()).keys()];
+}
+
 Vue.component('month-select', {
     props: ['value'],
     data: function () {
@@ -217,16 +235,25 @@ Vue.component('assistance-chart', {
             const toQuery = date => date.toISOString().split('T')[0];
             fetch(`/shifts?populate=node,user&where={"node":"${this.node.id}","started":{">=":"${toQuery(from)}","<=":"${toQuery(to)}"}}`)
                 .then(res => res.json())
-                .then(this.updateChart);
+                .then(shifts => this.updateChart(shifts));
         },
 
+        /**
+         * Recibe listado de shifts del servidor para actualizar grafico
+         */
         updateChart: function (shifts) {
             this.chart.updateSeries(
+                // Object.values devuelve un array con los valores de las propiedades del objeto
                 Object.values(this.groupShiftsByUserId(shifts))
                     .map(shifts => this.shiftsToSeries(shifts, this.search))
             );
         },
 
+        /**
+         * Agrupa shifts por id de usuario
+         * 
+         * [ {shift1}, {shift2}, {shift3} ] => { user1: [ {shift1}, {shift2} ], user2: [ {shift3} ] }
+         */
         groupShiftsByUserId: function (shifts) {
             return shifts.reduce((grouped, each) => {
                 grouped[each.user.id] = grouped[each.user.id] || [];
@@ -235,42 +262,64 @@ Vue.component('assistance-chart', {
             }, {});
         },
 
+        /**
+         * Transforma array de shifts en objeto con:
+         *  - data: Array de x, y
+         *  - name: nombre y apellido de usuario
+         */
         shiftsToSeries: function (shifts, options) {
+            // genera dias sin horarios para cada dia del mes
             const empty = this.initialEmptyRange(options.year, options.month);
             return {
-                data: Object.values(Object.assign(empty,
-                    shifts.reduce((acc, each) => {
-                        acc[new Date(each.started).toLocaleDateString()] = {
-                            x: new Date(each.started).getTime(),
-                            y: this.withExtraDay(each, new Date(each.ended).getHours()) - new Date(each.started).getHours()
-                        };
-                        return acc;
-                    }, {}))
-                ),
+                data: Object.values(Object.assign(empty, this.workedDays(shifts))),
                 name: shifts[0].user.firstName + ' ' + shifts[0].user.lastName
             };
         },
 
+        /**
+         * Genero dias placeholder para todo el mes
+         * {
+         *  x: fecha,
+         *  y: -1
+         * }
+         */
         initialEmptyRange: function (year, month) {
-            return [...new Array(this.daysInMonth(year, month)).keys()]
-                .reduce((acc, cur) => {
-                    const d = new Date(year, month, cur + 1);
-                    acc[d.toLocaleDateString()] = {
+            return daysInMonth(year, month).reduce(
+                (accumulator, day) => {
+                    const d = new Date(year, month, day + 1);
+
+                    accumulator[d.toLocaleDateString()] = {
                         x: d.getTime(),
                         y: -1
                     };
-                    return acc;
-                }, {});
+                    return accumulator;
+                },
+                {} // valor inicial del acumulador
+            );
         },
 
-        withExtraDay(shift, workedHours) {
-            let s = new Date(shift.started).getDate(),
-                e = new Date(shift.ended).getDate()
-            return e > s ? workedHours + 24 : workedHours
-        },
+        /**
+         * Convierto shift a formato valido para el grafico
+         * formato:
+         * {
+         *  x: fecha,
+         *  y: numero (horas trabajadas)
+         * }
+         */
+        workedDays: function (shifts) {
+            return shifts.reduce(
+                (accumulator, shift) => {
+                    let started = new Date(shift.started),
+                        ended = new Date(shift.ended);
 
-        daysInMonth: function (month, year) {
-            return new Date(year, month, 0).getDate();
+                    accumulator[started.toLocaleDateString()] = {
+                        x: started.getTime(),
+                        y: withExtraDay(shift, ended.getHours(), 24) - started.getHours()
+                    };
+                    return accumulator;
+                },
+                {} // valor inicial del acumulador
+            );
         }
     }
 });
@@ -361,28 +410,15 @@ Vue.component('user-assistance-chart', {
             const empty = this.initialEmptyRange(options.year, options.month);
             return shifts.length ? [
                 {
-                    data: Object.values(Object.assign(empty,
-                        shifts.reduce((acc, each) => {
-                            acc[new Date(each.started).toLocaleDateString()] = {
-                                x: new Date(each.started).getTime(),
-                                y: [
-                                    this.toMilitaryFormat(new Date(each.started)),
-                                    Number(this.node.shift_ends),
-                                    Number(this.node.shift_starts),
-                                    this.withExtraDay(each, this.toMilitaryFormat(new Date(each.ended)))
-                                ]
-                            };
-                            return acc;
-                        }, {}))
-                    ),
+                    data: Object.values(Object.assign(empty, this.workedDays(shifts))),
                     name: shifts[0].user.firstName + ' ' + shifts[0].user.lastName
                 }
             ] : [];
         },
 
         initialEmptyRange: function (year, month) {
-            return [...new Array(this.daysInMonth(year, month)).keys()]
-                .reduce((acc, cur) => {
+            return daysInMonth(year, month).reduce(
+                (acc, cur) => {
                     const d = new Date(year, month, cur + 1);
                     acc[d.toLocaleDateString()] = {
                         x: d.getTime(),
@@ -394,21 +430,34 @@ Vue.component('user-assistance-chart', {
                         ]
                     };
                     return acc;
-                }, {});
+                },
+                {} // valor inicial del acumulador
+            );
+        },
+
+        workedDays: function (shifts) {
+            return shifts.reduce(
+                (acc, each) => {
+                    let started = new Date(each.started),
+                        ended = new Date(each.ended);
+
+                    acc[started.toLocaleDateString()] = {
+                        x: started.getTime(),
+                        y: [
+                            this.toMilitaryFormat(started),
+                            Number(this.node.shift_ends),
+                            Number(this.node.shift_starts),
+                            withExtraDay(each, this.toMilitaryFormat(ended), 2400)
+                        ]
+                    };
+                    return acc;
+                },
+                {} // valor inicial del acumulador
+            );
         },
 
         toMilitaryFormat(date) {
             return Number(date.toLocaleString('es', { hour: '2-digit', minute: '2-digit' }).replace(':', ''));
-        },
-        
-        withExtraDay(shift, workedHours) {
-            let s = new Date(shift.started).getDate(),
-                e = new Date(shift.ended).getDate()
-            return e > s ? workedHours + 2400 : workedHours
-        },
-
-        daysInMonth: function (month, year) {
-            return new Date(year, month, 0).getDate();
         }
     }
 });
@@ -417,14 +466,13 @@ const app = new Vue({
     el: '#app',
     data: function () {
         const date = new Date();
-        const y = date.getFullYear(),
-            m = date.getMonth();
+        // inicializa la data
         return {
             node: null,
             user: null,
             searchOptions: {
-                year: y,
-                month: m
+                year: date.getFullYear(),
+                month: date.getMonth()
             }
         };
     },
@@ -437,5 +485,33 @@ const app = new Vue({
                 dateTo: new Date(this.searchOptions.year, this.searchOptions.month + 1, 0)
             };
         }
-    }
+    },
+    template: `
+    <div class="container">
+        <div class="row">
+            <div class="col s12">
+                <month-select v-model="searchOptions.month"></month-select>
+                <node-select v-model="node"></node-select>
+                <aside v-if="node">
+
+                    <h2 class="header">Nodo: {{node.name}}</h2>
+                    <p>Tag NFC: {{node.tag}}</p>
+                    <p>Horario de entrada: {{node.shift_starts}}</p>
+                    <p>Horario de salida: {{node.shift_ends}}</p>
+                    <assistance-chart :node="node" :search="search"></assistance-chart>
+
+                    <h3>Usuarios</h3>
+                    <user-select :node="node" v-model="user"></user-select>
+                    <aside v-if="user">
+                        <p>{{user.id}}</p>
+
+                        <user-assistance-chart :node="node" :user="user" :search="search"></user-assistance-chart>
+                    
+                    </aside>
+                </aside>
+                <h3 class="placeholder" v-else>Selecciona un nodo</h3>
+            </div>
+        </div>
+    </div>
+    `
 });

@@ -3,32 +3,11 @@
         max-width: 1024px;
         margin: 35px auto;
     }
+
+    .placeholder {
+        text-align: center;
+        margin-top: 46px;
+    }
 </style>
 
-<div id="app" class="section no-pad-bot">
-    <div class="container">
-        <div class="row">
-            <div class="col s12">
-                <month-select v-model="searchOptions.month"></month-select>
-                <node-select v-model="node"></node-select>
-                <aside v-if="node">
-
-                    <h2 class="header">Nodo: {{node.name}}</h2>
-                    <p>Tag NFC: {{node.tag}}</p>
-                    <p>Horario de entrada: {{node.shift_starts}}</p>
-                    <p>Horario de salida: {{node.shift_ends}}</p>
-                    <assistance-chart :node="node" :search="search"></assistance-chart>
-
-                    <h3>Usuarios</h3>
-                    <user-select :node="node" v-model="user"></user-select>
-                    <aside v-if="user">
-                        <p>{{user.id}}</p>
-
-                        <user-assistance-chart :node="node" :user="user" :search="search"></user-assistance-chart>
-                    
-                    </aside>
-                </aside>
-            </div>
-        </div>
-    </div>
-</div>
+<div id="app" class="section no-pad-bot"></div>
